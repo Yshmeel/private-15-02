@@ -11,12 +11,16 @@ class Room extends Model
 
     public $fillable = [
         'name',
-        'max_users'
+        'max_users',
+        'width',
+        'height'
     ];
 
     public $visible = [
         'name',
-        'max_users'
+        'max_users',
+        'width',
+        'height'
     ];
 
     public function users() {

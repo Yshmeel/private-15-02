@@ -69,7 +69,8 @@
                         <b>Rooms</b>
                     </div>
 
-                    <div class="app__aside__rooms__container p-3 pb-0" id="rooms-container"></div>
+                    <div class="app__aside__rooms__container p-3" id="rooms-container"></div>
+
                 </div>
 
                 <div class="app__aside__chat">
@@ -89,6 +90,7 @@
             </aside>
 
             <div class="app__office">
+                <div class="app__office__rooms__zones" id="zones-container"></div>
                 <div class="app__office--image"></div>
                 <div class="app__office--users" id="office-users"></div>
             </div>

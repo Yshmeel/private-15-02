@@ -111,6 +111,18 @@ document.addEventListener("DOMContentLoaded", () => {
             const $roomsContainer = $appScreen.querySelector('#rooms-container');
             $roomsContainer.innerHTML = '';
 
+            const $userCreatedAtTimer = document.querySelector('#user-created-at-timer');
+            const duration = calculateTimeDifference(response.user.created_at);
+
+            $userCreatedAtTimer.innerText = `${parseInt(duration.hours) + 1}h ${Math.abs(duration.minutes) - 1}m`;
+
+            const $zonesContainer = $appScreen.querySelector('#zones-container');
+
+
+            if(!isDragging) {
+                $zonesContainer.innerHTML = '';
+            }
+
             response.rooms.forEach((room) => {
                 const element = document.createElement('div');
                 element.classList.add('app__aside__room');
@@ -130,6 +142,33 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 $roomsContainer.appendChild(element);
+
+                if(!isDragging) {
+                    const zone = document.createElement('div');
+                    zone.classList.add('app__office__rooms__zone');
+
+                    zone.style.width = `${room.width}px`;
+                    zone.style.height = `${room.height}px`;
+                    zone.style.top = `${room.y}px`;
+                    zone.style.left = `${room.x}px`;
+                    zone.style.zIndex = `${(room.layer + 1) * 10}`;
+
+                    zone.innerHTML = `<span>${room.name}</span>`;
+
+                    zone.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+
+                        zone.style.opacity = '1';
+                    });
+
+                    zone.addEventListener('dragleave', (e) => {
+                        e.preventDefault();
+
+                        zone.style.opacity = '0';
+                    });
+
+                    $zonesContainer.appendChild(zone);
+                }
             });
 
             const $chatContainer = $appScreen.querySelector('#chat-container');
@@ -139,13 +178,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 $chatContainer.innerHTML = `<span>No messages found</span>`;
             } else {
                 response.messages.forEach((message) => {
+                    const date = new Date(message.created_at);
+
                     const element = document.createElement('div');
                     element.classList.add('app__aside__chat__item');
 
                     element.innerHTML = `
-                    <div class="app__aside__chat__item--head">
-                        <b>${message.user.name}</b>
-                        <span>04 Feb</span>
+                    <div class="app__aside__chat__item--head d-flex justify-content-between">
+                        <b class="mb-1">${message.user.name}</b>
+                        <span>${(date.getDate() + 1).toString().padStart(2, '0')} Feb</span>
                     </div>
 
                     <p>${message.message}</p>`;
@@ -163,7 +204,43 @@ document.addEventListener("DOMContentLoaded", () => {
                 response.users.forEach((user) => {
                     const element = document.createElement('div');
                     element.classList.add('app__office__user');
-                    element.innerHTML = `<img src="/avatars/avatar-${user.avatar_id.toString().padStart(2, '0')}.svg" alt="user-avatar" />`
+                    element.innerHTML = `
+                        <img src="/avatars/avatar-${user.avatar_id.toString().padStart(2, '0')}.svg" alt="user-avatar" />
+                        <b>${user.name}</b>
+                        `;
+
+                    element.style.top = `${user.y}px`;
+                    element.style.left = `${user.x}px`;
+
+                    element.addEventListener('dragstart', (e) => {
+                        isDragging = true;
+                    });
+
+
+                    element.addEventListener('dragend', (e) => {
+                        isDragging = false;
+
+                        const newX = e.clientX - 360 - 20 - 4;
+                        const newY = e.clientY - 10 - 16;
+
+                        response.rooms.sort((a, b) => a.layer - b.layer).forEach((v) => {
+                            if(newX >= v.x && newX <= (v.x + v.width) && newY >= v.y && newY <= (v.y + v.height)) {
+                                fetch("/api/select-room", {
+                                    method: "PATCH",
+                                    headers: {
+                                        Accept: "application/json",
+                                        'Content-Type': 'application/json',
+                                        Authorization: `Bearer ${localStorage.getItem('token')}`
+                                    },
+                                    body: JSON.stringify({
+                                        room_id: v.id,
+                                        x: newX,
+                                        y: newY,
+                                    })
+                                });
+                            }
+                        })
+                    });
 
                     $officeUsers.appendChild(element);
                 });
@@ -174,6 +251,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const logout = async () => {
             window.clearInterval(intervalID);
+            console.log(localStorage.getItem('token'));
 
             await fetch("/api/user", {
                 method: "DELETE",
@@ -242,3 +320,26 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 300);
     }
 });
+
+
+// utils
+
+function calculateTimeDifference(date) {
+    try {
+        const targetDate = new Date(date);
+        const currentDate = new Date();
+
+        const difference = targetDate - currentDate;
+        const seconds = Math.floor(difference / 1000);
+
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+
+        return {
+            hours: hours.toString().padStart(2, '0'),
+            minutes: minutes.toString().padStart(2, '0'),
+        };
+    } catch (error) {
+        return null;
+    }
+}

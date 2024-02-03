@@ -44,8 +44,8 @@ class ApiController extends Controller
             'name' => $request->input('name'),
             'avatar_id' => $request->input('avatar_id'),
             'selected_room_id' => $randomRoom->id,
-            'x' => $randomRoom->x / 2,
-            'y' => $randomRoom->y / 2,
+            'x' => rand($randomRoom->x, ($randomRoom->x + $randomRoom->width) - 48),
+            'y' => rand($randomRoom->y - 48, ($randomRoom->y + $randomRoom->height) - 48),
             'last_updated_at' => Carbon::now(),
         ]);
 
@@ -89,10 +89,16 @@ class ApiController extends Controller
             'users' => $users,
             'rooms' => $rooms->map(function($room) {
                 return [
+                    'id' => $room->id,
                     'name' => $room->name,
                     'max_users' => $room->max_users,
                     'users_count' => count($room->users),
                     'users' => $room->users,
+                    'x' => $room->x,
+                    'y' => $room->y,
+                    'width' => $room->width,
+                    'height' => $room->height,
+                    'layer' => $room->layer,
                 ];
             }),
             'messages' => $currentRoom->messages->map(function($message) {
@@ -140,7 +146,7 @@ class ApiController extends Controller
         $user = auth()->user();
         $oldRoom = Room::query()
             ->with(['users'])
-            ->where('selected_room_id', $user->selected_room_id)->first();
+            ->where('id', $user->selected_room_id)->first();
 
         $newRoom = Room::query()
             ->with(['users'])

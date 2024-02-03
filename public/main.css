@@ -45,10 +45,10 @@
 }
 
 .app__office--image {
-    background: url("/assets/office.jpg") no-repeat;
-    background-size: contain;
+    background: url(/assets/office.jpg) no-repeat;
+    background-size: 100% 100%;
     width: calc(100vw - 360px);
-    height: 100vh;
+    height: 884px;
 }
 
 aside {
@@ -95,10 +95,44 @@ aside {
 .app__aside__chat__container {
     max-height: 20vh;
     overflow: auto;
+    flex-direction: column-reverse;
+    display: flex;
 }
 
 
 .app__aside__rooms__container {
     max-height: 40vh;
     overflow: auto;
+}
+
+.app__office__user {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    user-select: none;
+    z-index: 1000;
+}
+
+.app__office__user img {
+    width: 36px;
+    height: 36px;
+}
+
+
+.app__office__rooms__zone {
+    position: absolute;
+    opacity: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+div#zones-container {
+    position: absolute;
+    left: 360px;
+    top: 0;
+    z-index: 100;
 }

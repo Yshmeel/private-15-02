@@ -17,6 +17,9 @@ return new class extends Migration
             $table->integer('max_users');
             $table->integer('x');
             $table->integer('y');
+            $table->integer('width');
+            $table->integer('height');
+            $table->integer('layer')->default(0);
             $table->timestamps();
         });
     }
