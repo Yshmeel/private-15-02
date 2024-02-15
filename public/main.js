@@ -1,27 +1,27 @@
+/**
+ * NOTE: okay, this source code is shit, but this task has a limitation for 6 hours
+ * and I have done it for ~3 hours. I think there's not any other explanation for this :>
+ * - Yshmeel
+ */
+
+
+
 // allow scripts to be init after dom loaded
 document.addEventListener("DOMContentLoaded", () => {
     const $loadingScreen = document.getElementById('loading-screen');
     const $loginScreen = document.getElementById('login-screen');
     const $appScreen = document.getElementById('app-screen');
 
+    /* Close all screens before opening a new */
     const closeAllScreens = () => {
         $loginScreen.classList.add('screen-hidden');
         $loadingScreen.classList.add('screen-hidden');
         $appScreen.classList.add('screen-hidden');
     };
 
-    const cleanUsersDocument = (users) => {
-        return users.map((v) => ({
-            id: v.id,
-            name: v.id,
-            selected_room_id: v.selected_room_id,
-            x: v.x,
-            y: v.y
-        }))
-    };
+    /* Separate all screens by modules */
 
-    // small division by modules??
-
+    /* --- LOGIN MODULE --- */
     const login = () => {
         const $loginForm = document.getElementById('login-form');
 
@@ -85,10 +85,35 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     };
 
+    /* Main office application */
     const application = () => {
-        let isDragging = false;
         let users = [];
+        let rooms = [];
+        let currentUser = null;
+        let isDragging = false;
 
+        /** @type {HTMLCanvasElement} */
+        const $canvas = document.getElementById('office-canvas');
+
+        const $officeImageAsset = document.getElementById('office-image');
+
+        const updateUserInfo = (isFirst, user) => {
+            if(isFirst) {
+                $appScreen.querySelector('#user-avatar')
+                    .setAttribute('src', `/avatars/avatar-${user.avatar_id.toString().padStart(2, '0')}.svg`)
+
+                $appScreen.querySelector('#username').innerHTML = user.name;
+            }
+
+            const $userCreatedAtTimer = document.querySelector('#user-created-at-timer');
+            const duration = calculateTimeDifference(user.created_at);
+
+            $userCreatedAtTimer.innerText = `${parseInt(duration.hours) + 1}h ${Math.abs(duration.minutes) - 1}m`;
+        };
+
+        /*
+        Does HTTP routine every interval iteration and recreates page from scratch
+         */
         const doRoutine = async (isFirst = false) => {
             const request = await fetch("/api/routine", {
                 method: "GET",
@@ -101,32 +126,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const response = await request.json();
 
-            if(isFirst) {
-                $appScreen.querySelector('#user-avatar')
-                    .setAttribute('src', `/avatars/avatar-${response.user.avatar_id.toString().padStart(2, '0')}.svg`)
+            updateUserInfo(isFirst, response.user);
 
-                $appScreen.querySelector('#username').innerHTML = response.user.name;
-            }
-
+            // Clear rooms container to render rooms again
             const $roomsContainer = $appScreen.querySelector('#rooms-container');
             $roomsContainer.innerHTML = '';
 
-            const $userCreatedAtTimer = document.querySelector('#user-created-at-timer');
-            const duration = calculateTimeDifference(response.user.created_at);
-
-            $userCreatedAtTimer.innerText = `${parseInt(duration.hours) + 1}h ${Math.abs(duration.minutes) - 1}m`;
-
-            const $zonesContainer = $appScreen.querySelector('#zones-container');
-
-
-            if(!isDragging) {
-                $zonesContainer.innerHTML = '';
-            }
 
             response.rooms.forEach((room) => {
                 const element = document.createElement('div');
                 element.classList.add('app__aside__room');
-                element.innerHTML = `<b class="mb-2">${room.name} (${room.users_count}/${room.max_users})</b><ul></ul>`;
+                element.classList.add('p-2', 'px-6', 'bg-gray-100', 'border');
+                element.innerHTML = `<b class="mb-2 text-xl">${room.name} (${room.users_count}/${room.max_users})</b><ul></ul>`;
 
                 if(room.users_count === room.max_users) {
                     element.classList.add('room-full')
@@ -136,39 +147,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 room.users.forEach((user) => {
                     const $element = document.createElement('li');
-                    $element.innerHTML = user.name;
+                    $element.innerHTML = `${user.name}`;
 
+                    $ulContainer.classList.add('p-2', 'px-4');
                     $ulContainer.append($element);
                 });
 
                 $roomsContainer.appendChild(element);
-
-                if(!isDragging) {
-                    const zone = document.createElement('div');
-                    zone.classList.add('app__office__rooms__zone');
-
-                    zone.style.width = `${room.width}px`;
-                    zone.style.height = `${room.height}px`;
-                    zone.style.top = `${room.y}px`;
-                    zone.style.left = `${room.x}px`;
-                    zone.style.zIndex = `${(room.layer + 1) * 10}`;
-
-                    zone.innerHTML = `<span>${room.name}</span>`;
-
-                    zone.addEventListener('dragover', (e) => {
-                        e.preventDefault();
-
-                        zone.style.opacity = '1';
-                    });
-
-                    zone.addEventListener('dragleave', (e) => {
-                        e.preventDefault();
-
-                        zone.style.opacity = '0';
-                    });
-
-                    $zonesContainer.appendChild(zone);
-                }
             });
 
             const $chatContainer = $appScreen.querySelector('#chat-container');
@@ -181,10 +166,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     const date = new Date(message.created_at);
 
                     const element = document.createElement('div');
-                    element.classList.add('app__aside__chat__item');
+                    element.classList.add('app__aside__chat__item', 'mb-3');
 
                     element.innerHTML = `
-                    <div class="app__aside__chat__item--head d-flex justify-content-between">
+                    <div class="app__aside__chat__item--head flex justify-between">
                         <b class="mb-1">${message.user.name}</b>
                         <span>${(date.getDate() + 1).toString().padStart(2, '0')} Feb</span>
                     </div>
@@ -195,63 +180,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 })
             }
 
-            if(!isDragging && JSON.stringify(cleanUsersDocument(users)) !== JSON.stringify(cleanUsersDocument(response.users))) {
-                users = response.users;
+            // Assign users and rooms to its own variables, to assign them later
+            users = response.users;
+            rooms = response.rooms;
 
-                const $officeUsers = $appScreen.querySelector('#office-users');
-                $officeUsers.innerHTML = '';
-
-                response.users.forEach((user) => {
-                    const element = document.createElement('div');
-                    element.classList.add('app__office__user');
-                    element.innerHTML = `
-                        <img src="/avatars/avatar-${user.avatar_id.toString().padStart(2, '0')}.svg" alt="user-avatar" />
-                        <b>${user.name}</b>
-                        `;
-
-                    element.style.top = `${user.y}px`;
-                    element.style.left = `${user.x}px`;
-
-                    element.addEventListener('dragstart', (e) => {
-                        isDragging = true;
-                    });
-
-
-                    element.addEventListener('dragend', (e) => {
-                        isDragging = false;
-
-                        const newX = e.clientX - 360 - 20 - 4;
-                        const newY = e.clientY - 10 - 16;
-
-                        response.rooms.sort((a, b) => a.layer - b.layer).forEach((v) => {
-                            if(newX >= v.x && newX <= (v.x + v.width) && newY >= v.y && newY <= (v.y + v.height)) {
-                                fetch("/api/select-room", {
-                                    method: "PATCH",
-                                    headers: {
-                                        Accept: "application/json",
-                                        'Content-Type': 'application/json',
-                                        Authorization: `Bearer ${localStorage.getItem('token')}`
-                                    },
-                                    body: JSON.stringify({
-                                        room_id: v.id,
-                                        x: newX,
-                                        y: newY,
-                                    })
-                                });
-                            }
-                        })
-                    });
-
-                    $officeUsers.appendChild(element);
-                });
+            if(!isDragging) {
+                currentUser = response.user;
             }
+
+            // Every routine we need to draw canvas again, if some data is cahnged
+            drawCanvasOffice();
         };
 
-        let intervalID = setInterval(doRoutine, 300);
-
+        /**
+         * Logout user by clicking Logout button
+         * It is a handler for a button
+         * @returns {Promise<void>}
+         */
         const logout = async () => {
             window.clearInterval(intervalID);
-            console.log(localStorage.getItem('token'));
 
             await fetch("/api/user", {
                 method: "DELETE",
@@ -267,6 +214,11 @@ document.addEventListener("DOMContentLoaded", () => {
             $loginScreen.classList.remove('screen-hidden');
         };
 
+        /**
+         * Sending messages in chat.
+         * It is a handler for Send button
+         * @returns {Promise<void>}
+         */
         const sendMessage = async() => {
             const $input = $appScreen.querySelector('aside form input');
             const value = $appScreen.querySelector('aside form input')?.value;
@@ -290,6 +242,200 @@ document.addEventListener("DOMContentLoaded", () => {
             $input.value = "";
         };
 
+        // --- CANVAS STRUCTURE ---
+
+        let mouseX, mouseY = 0;
+
+        /* Drag&drop: writing mouseX and mouseY in variables.
+        330 is a magic number
+         */
+        $canvas.onmousemove = function (e) {
+            mouseX = e.clientX - 330;
+            mouseY = e.clientY;
+
+            if(isDragging) {
+                currentUser.x = mouseX;
+                currentUser.y = mouseY;
+            }
+
+            drawCanvasOffice();
+        };
+
+        /* Drag&drop: user is pressing LMB, and we need to turn dragging mode if user click on itself */
+        $canvas.onmousedown = function(e) {
+            let minX = currentUser.x;
+            let maxX = currentUser.x + 48;
+            let minY = currentUser.y;
+            let maxY = currentUser.y + 64;
+
+            if(!(mouseX >= minX && mouseX <= maxX && mouseY >= minY && mouseY <= maxY)) {
+                return;
+            }
+
+            isDragging = true;
+            currentUser.x = mouseX;
+            currentUser.y = mouseY;
+        };
+
+        /* Drag&drop: user is releasing LMB, and we need to check in which room user placed its avatar */
+        $canvas.onmouseup = function(e) {
+            if(!isDragging) {
+                return;
+            }
+
+            isDragging = false;
+
+            const context = $canvas.getContext('2d');
+            rooms.forEach((room) => {
+                // @todo MASSIVE DRY AS 373-432. fix later @wontfix
+                let points = [];
+
+                if(room.points.length === 0) {
+                    points = [
+                        { x: room.x, y: room.y },
+                        { x: room.x + room.width, y: room.y },
+                        { x: room.x + room.width, y: room.y + room.height },
+                        { x: room.x, y: room.y + room.height },
+                    ];
+                } else {
+                    points = room.points;
+                }
+
+                let minX = 0;
+                let maxX = 0;
+                let minY = 0;
+                let maxY = 0;
+
+                points.forEach((v) => {
+                    if(minX === 0 || minX > v.x) {
+                        minX = v.x;
+                    }
+
+                    if(v.x > maxX) {
+                        maxX = v.x;
+                    }
+
+                    if(minY === 0 || minY > v.y) {
+                        minY = v.y;
+                    }
+
+                    if(v.y > maxY) {
+                        maxY = v.y;
+                    }
+                })
+
+                context.beginPath();
+                context.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    context.lineTo(points[i].x, points[i].y);
+                }
+
+                context.fillStyle = 'rgba(0, 0, 0, .3)';
+                context.closePath();
+                if(context.isPointInPath(mouseX, mouseY)) {
+                    if(room.users_count >= room.max_users && currentUser.selected_room_id !== room.id) {
+                        alert('This room is busy');
+                        return;
+                    }
+
+                    fetch("/api/select-room", {
+                        method: "PATCH",
+                        headers: {
+                            Accept: "application/json",
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify({
+                            room_id: room.id,
+                            x: mouseX,
+                            y: mouseY,
+                        })
+                    });
+                }
+            });
+        };
+
+        const drawCanvasOffice = () => {
+            // Static width and height because we do not need adaptive on <1920w devices
+            $canvas.width = 1560;
+            $canvas.height = 800;
+
+            const context = $canvas.getContext('2d');
+            context.drawImage($officeImageAsset, 0, 0, $canvas.width, $canvas.height);
+
+            context.textAlign = 'center';
+            context.font = 'normal normal bold 24px Arial';
+
+            [currentUser, ...users.filter((v) => v.id !== currentUser.id)]
+                .forEach((user) => {
+                    context.drawImage(document.querySelector(`.asset-avatar[data-id="${user.avatar_id}"]`), user.x, user.y, 48, 48);
+                    context.fillStyle = user.color;
+                    context.fillText(user.name, user.x + 24, user.y + 64, 150);
+                });
+
+            rooms.forEach((room) => {
+                let points = [];
+
+                if(room.points.length === 0) {
+                    points = [
+                        { x: room.x, y: room.y },
+                        { x: room.x + room.width, y: room.y },
+                        { x: room.x + room.width, y: room.y + room.height },
+                        { x: room.x, y: room.y + room.height },
+                    ];
+                } else {
+                    points = room.points;
+                }
+
+                let minX = 0;
+                let maxX = 0;
+                let minY = 0;
+                let maxY = 0;
+
+                points.forEach((v) => {
+                    if(minX === 0 || minX > v.x) {
+                        minX = v.x;
+                    }
+
+                    if(v.x > maxX) {
+                        maxX = v.x;
+                    }
+
+                    if(minY === 0 || minY > v.y) {
+                        minY = v.y;
+                    }
+
+                    if(v.y > maxY) {
+                        maxY = v.y;
+                    }
+                })
+
+                if(!(mouseX >= minX && mouseX <= maxX && mouseY >= minY && mouseY <= maxY)) {
+                    return;
+                }
+
+                context.beginPath();
+                context.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    context.lineTo(points[i].x, points[i].y);
+                }
+
+                context.closePath();
+                if(context.isPointInPath(mouseX, mouseY) && isDragging) {
+
+                    context.fillStyle = 'rgba(207, 64, 64, .6)';
+                    context.fill();
+
+                    context.font = 'normal normal bold 16px Arial';
+                    context.textAlign = 'left';
+                    context.fillStyle = '#000';
+                    context.fillText(room.name, points[0].x + 10, points[0].y + 40);
+
+                    context.stroke();
+                }
+            });
+        }
+
         $appScreen.querySelector('aside form').addEventListener('submit', (e) => {
             e.preventDefault();
             sendMessage();
@@ -297,6 +443,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // initial scripts
 
+        let intervalID = setInterval(doRoutine, 300);
         doRoutine(true);
 
         setTimeout(() => {
@@ -324,6 +471,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // utils
 
+/**
+ * Calculates difference between current date and target date to get hours and minutes as duration
+ * @param date
+ * @returns {{hours: string, minutes: string}|null}
+ */
 function calculateTimeDifference(date) {
     try {
         const targetDate = new Date(date);
@@ -336,7 +488,7 @@ function calculateTimeDifference(date) {
         const minutes = Math.floor((seconds % 3600) / 60);
 
         return {
-            hours: hours.toString().padStart(2, '0'),
+            hours: Math.abs(hours).toString().padStart(2, '0'),
             minutes: minutes.toString().padStart(2, '0'),
         };
     } catch (error) {

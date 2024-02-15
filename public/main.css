@@ -28,15 +28,9 @@
 
 
 .selectable-avatar-list {
-    max-height: 300px;
+    max-height: 30vh;
     overflow: auto;
-    border-radius: 8px;
     border: 1px solid #ddd;
-}
-
-
-.login__screen {
-    background-image: linear-gradient(18deg, rgba(20,145,109,1) 0%, rgba(0,255,181,1) 100%);
 }
 
 
@@ -52,15 +46,10 @@
 }
 
 aside {
-    width: 360px;
+    min-width: 320px;
+    max-width: 320px;
+    width: 320px;
     height: 100vh;
-
-    border-right: 1px solid #000;
-}
-
-.app__aside__header__user--left img {
-    width: 128px;
-    height: 128px;
 }
 
 .app__office--users {
@@ -135,4 +124,8 @@ div#zones-container {
     left: 360px;
     top: 0;
     z-index: 100;
+}
+
+canvas {
+    image-rendering: pixelated;
 }

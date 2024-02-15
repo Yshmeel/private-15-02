@@ -18,5 +18,6 @@ class User extends Authenticatable
         'x',
         'y',
         'last_updated_at',
+        'color'
     ];
 }

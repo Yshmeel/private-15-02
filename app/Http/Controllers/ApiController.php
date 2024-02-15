@@ -12,6 +12,13 @@ use Carbon\Carbon;
 
 class ApiController extends Controller
 {
+    public static $COLORS = [
+        'orange',
+        'blue',
+        'green',
+        'brown'
+    ];
+
     public function createUser(CreateUserRequest $request) {
         $rooms = Room::query()
             ->with(['users'])
@@ -47,6 +54,7 @@ class ApiController extends Controller
             'x' => rand($randomRoom->x, ($randomRoom->x + $randomRoom->width) - 48),
             'y' => rand($randomRoom->y - 48, ($randomRoom->y + $randomRoom->height) - 48),
             'last_updated_at' => Carbon::now(),
+            'color' => static::$COLORS[rand(0, count(static::$COLORS) - 1)]
         ]);
 
         // sanctum for tokens??
@@ -59,7 +67,7 @@ class ApiController extends Controller
     public function routine() {
         $user = auth()->user();
 
-        $rooms = Room::query()->with(['users'])->get();
+        $rooms = Room::query()->with(['users', 'points'])->get();
         $currentRoom = Room::query()
             ->with(['messages', 'users', 'messages.user'])
             ->where('id', $user->selected_room_id)->first();
@@ -99,6 +107,7 @@ class ApiController extends Controller
                     'width' => $room->width,
                     'height' => $room->height,
                     'layer' => $room->layer,
+                    'points' => $room->points,
                 ];
             }),
             'messages' => $currentRoom->messages->map(function($message) {

@@ -28,6 +28,10 @@ class Room extends Model
     }
 
     public function messages() {
-        return $this->hasMany(ChatMessage::class)->orderBy('created_at', 'ASC');
+        return $this->hasMany(ChatMessage::class)->orderBy('created_at', 'DESC');
+    }
+
+    public function points() {
+        return $this->hasMany(RoomPoint::class);
     }
 }
